@@ -17,8 +17,11 @@
 	</style>
 </head>
 <body>
-<div style="position:fixed;top:10px;left:10px;z-index:10;"><button onclick="groundpush()">下陷</button>
-<button onclick="pushmove()">移动</button></div>
+<div style="position:fixed;top:10px;left:10px;z-index:10;">
+	<button onclick="groundpush()">下陷</button>
+	<button onclick="pushmove()">移动</button>
+	<!-- <button onclick="toggle()">地上/地下</button> -->
+</div>
 <div id="cesiumContainer"></div>
 </body>
 <script>
@@ -26,12 +29,23 @@ var viewer = new Cesium.Viewer('cesiumContainer');
 var scene = viewer.scene;
 var camera = viewer.camera;
 var ellipsoid = scene.globe.ellipsoid;
+scene.globe.depthTestAgainstTerrain = true;
+//Add Cesium Inspector
+viewer.extend(Cesium.viewerCesiumInspectorMixin);
+
+var upStatus = true;
+var underStatus = false;
 
 var west = Cesium.Math.toRadians(120);
 var south = Cesium.Math.toRadians(30);
 var east = Cesium.Math.toRadians(120.001);
 var north = Cesium.Math.toRadians(30.001);
 var pushRectangle = new Cesium.Rectangle(west,south,east,north);
+var west2 = Cesium.Math.toRadians(120.001);
+var south2 = Cesium.Math.toRadians(30.001);
+var east2 = Cesium.Math.toRadians(120.002);
+var north2 = Cesium.Math.toRadians(30.002);
+var pushRectangle2 = new Cesium.Rectangle(west2,south2,east2,north2);
 
 var initialHeightOffset = 200;
 var initialPushDepth = 50;
@@ -40,6 +54,8 @@ var structure = {
     pushRectangle:pushRectangle,
     pushDepth:initialPushDepth
 };
+
+var currentCenter = new Cesium.Cartographic((west+east)/2,(south+north)/2,initialHeightOffset-initialPushDepth/2);
 
 viewer.terrainProvider=new Cesium.EllipsoidTerrainProvider({
     structure:structure
@@ -50,45 +66,207 @@ viewer.camera.setView({
 });
 
 function groundpush(){
+	var structure = viewer.terrainProvider._structure; 
 	var this_structure = {
 		heightOffset:structure.heightOffset,
 		pushRectangle:structure.pushRectangle,
 		pushDepth:100
 	};
+	currentCenter = new Cesium.Cartographic((structure.pushRectangle.west+structure.pushRectangle.east)/2,(structure.pushRectangle.south+structure.pushRectangle.north)/2,structure.heightOffset-structure.pushDepth/2);
+	cave.rectangle.height = this_structure.heightOffset-this_structure.pushDepth;
+	greenRectangle.rectangle.height = this_structure.heightOffset-this_structure.pushDepth;
+	greenRectangle.rectangle.extrudedHeight = this_structure.heightOffset-this_structure.pushDepth+10;
 	viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider({
 		structure:this_structure
 	});
 }
 
 function pushmove(){
-	var west2 = Cesium.Math.toRadians(120.001);
-	var south2 = Cesium.Math.toRadians(30.001);
-	var east2 = Cesium.Math.toRadians(120.002);
-	var north2 = Cesium.Math.toRadians(30.002);
-	var pushRectangle2 = new Cesium.Rectangle(west2,south2,east2,north2);
+	var structure = viewer.terrainProvider._structure;
 	var this_structure = {
 		heightOffset:structure.heightOffset,
 		pushRectangle:pushRectangle2,
 		pushDepth:structure.pushDepth
 	};
+	currentCenter = new Cesium.Cartographic((structure.pushRectangle.west+structure.pushRectangle.east)/2,(structure.pushRectangle.south+structure.pushRectangle.north)/2,structure.heightOffset-structure.pushDepth/2);
+	cave.rectangle.coordinates = pushRectangle2;
+	greenRectangle.rectangle.coordinates = Cesium.Rectangle.fromDegrees(120.001+0.0002,30.001+0.0002,120.002-0.0002,30.002-0.0002);
 	viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider({
 		structure:this_structure
 	});
 }
+var startMousePosition;
+var mousePosition;
+var flags = {
+	looking : false,
+	moveForward : false,
+	moveBackward : false,
+	moveUp : false,
+	moveDown : false,
+	moveLeft : false,
+	moveRight : false
+};
+var canvas = viewer.canvas;
+var handler = new Cesium.ScreenSpaceEventHandler(canvas);
+function toggle(){
+	if(upStatus){
+		canvas.setAttribute('tabindex', '0'); // needed to put focus on the canvas
+		canvas.onclick = function() {
+			canvas.focus();
+		};
+
+		// disable the default event handlers
+		scene.screenSpaceCameraController.enableRotate = false;
+		scene.screenSpaceCameraController.enableTranslate = false;
+		scene.screenSpaceCameraController.enableZoom = false;
+		scene.screenSpaceCameraController.enableTilt = false;
+		scene.screenSpaceCameraController.enableLook = false;
+
+		handler.setInputAction(function(movement) {
+			flags.looking = true;
+			mousePosition = startMousePosition = Cesium.Cartesian3.clone(movement.position);
+		}, Cesium.ScreenSpaceEventType.LEFT_DOWN);
+
+		handler.setInputAction(function(movement) {
+			mousePosition = movement.endPosition;
+		}, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
+
+		handler.setInputAction(function(position) {
+			flags.looking = false;
+		}, Cesium.ScreenSpaceEventType.LEFT_UP);
+
+		function getFlagForKeyCode(keyCode) {
+			switch (keyCode) {
+			case 'W'.charCodeAt(0):
+				return 'moveForward';
+			case 'S'.charCodeAt(0):
+				return 'moveBackward';
+			case 'Q'.charCodeAt(0):
+				return 'moveUp';
+			case 'E'.charCodeAt(0):
+				return 'moveDown';
+			case 'D'.charCodeAt(0):
+				return 'moveRight';
+			case 'A'.charCodeAt(0):
+				return 'moveLeft';
+			default:
+				return undefined;
+			}
+		}
+
+		document.addEventListener('keydown', function(e) {
+			var flagName = getFlagForKeyCode(e.keyCode);
+			if (typeof flagName !== 'undefined') {
+				flags[flagName] = true;
+			}
+		}, false);
+
+		document.addEventListener('keyup', function(e) {
+			var flagName = getFlagForKeyCode(e.keyCode);
+			if (typeof flagName !== 'undefined') {
+				flags[flagName] = false;
+			}
+		}, false);
+		
+		var dest = ellipsoid.cartographicToCartesian(currentCenter);
+		camera.setView({
+			destination:dest,
+			orientation: {
+				heading : Cesium.Math.toRadians(0.0), // east, default value is 0.0 (north)
+				pitch : Cesium.Math.toRadians(0),    // default value (looking down)
+				roll : 0.0                             // default value
+			}
+		});
+		underStatus = true;
+		upStatus = false;
+	}
+	else{
+		var upCenter = new Cesium.Cartographic(currentCenter.longitude,currentCenter.latitude,210);
+		var dest = ellipsoid.cartographicToCartesian(upCenter);
+		camera.setView({
+			destination:dest,
+			orientation: {
+				heading : Cesium.Math.toRadians(0.0), // east, default value is 0.0 (north)
+				pitch : Cesium.Math.toRadians(-90),    // default value (looking down)
+				roll : 0.0                             // default value
+			}
+		});
+		underStatus = false;
+		upStatus = true;
+		
+		scene.screenSpaceCameraController.enableRotate = true;
+		scene.screenSpaceCameraController.enableTranslate = true;
+		scene.screenSpaceCameraController.enableZoom = true;
+		scene.screenSpaceCameraController.enableTilt = true;
+		scene.screenSpaceCameraController.enableLook = true;
+		
+		handler.destroy();
+	}
+}
 
 viewer.clock.onTick.addEventListener(function(clock) {
     // Change movement speed based on the distance of the camera to the surface of the ellipsoid.
-    var carto = ellipsoid.cartesianToCartographic(camera.position);
-    if(carto.height<210){
-        var lat = carto.latitude;
-        var lon = carto.longitude;
-        var height = 210;
-        var newCarto = new Cesium.Cartographic(lon, lat, height);
-        camera.position = ellipsoid.cartographicToCartesian(newCarto);
-    }
+    //var carto = ellipsoid.cartesianToCartographic(camera.position);
+	//console.log(carto.height);
+	if(upStatus){
+		var carto = ellipsoid.cartesianToCartographic(camera.position);
+		if(carto.height<210){
+			var lat = carto.latitude;
+			var lon = carto.longitude;
+			var height = 210;
+			var newCarto = new Cesium.Cartographic(lon, lat, height);
+			camera.position = ellipsoid.cartographicToCartesian(newCarto);
+		}
+	}
+	else{
+		var carto = ellipsoid.cartesianToCartographic(camera.position);
+		if(carto.height>180){
+			var lat = carto.latitude;
+			var lon = carto.longitude;
+			var height = 180;
+			var newCarto = new Cesium.Cartographic(lon, lat, height);
+			camera.position = ellipsoid.cartographicToCartesian(newCarto);
+		}
+		if (flags.looking) {
+			var width = canvas.clientWidth;
+			var height = canvas.clientHeight;
+
+			// Coordinate (0.0, 0.0) will be where the mouse was clicked.
+			var x = (mousePosition.x - startMousePosition.x) / width;
+			var y = -(mousePosition.y - startMousePosition.y) / height;
+
+			var lookFactor = 0.05;
+			camera.lookRight(x * lookFactor);
+			camera.lookUp(y * lookFactor);
+		}
+
+		// Change movement speed based on the distance of the camera to the surface of the ellipsoid.
+		var cameraHeight = ellipsoid.cartesianToCartographic(camera.position).height;
+		var moveRate = cameraHeight / 100.0;
+
+		if (flags.moveForward) {
+			camera.moveForward(moveRate);
+		}
+		if (flags.moveBackward) {
+			camera.moveBackward(moveRate);
+		}
+		if (flags.moveUp) {
+			camera.moveUp(moveRate);
+		}
+		if (flags.moveDown) {
+			camera.moveDown(moveRate);
+		}
+		if (flags.moveLeft) {
+			camera.moveLeft(moveRate);
+		}
+		if (flags.moveRight) {
+			camera.moveRight(moveRate);
+		}
+	}
+    
 });
 
-/*var cave = viewer.entities.add({
+var cave = viewer.entities.add({
     name : 'cave',
     rectangle : {
         coordinates : pushRectangle,
@@ -102,15 +280,15 @@ viewer.clock.onTick.addEventListener(function(clock) {
 });
 
 var greenRectangle = viewer.entities.add({
-    name : 'Green translucent, rotated, and extruded rectangle at height with outline',
+    name : 'Someting underground',
     rectangle : {
-        coordinates : Cesium.Rectangle.fromDegrees(120+0.0002,31+0.0002,120.001-0.0002,31.001-0.0002),
-        material : Cesium.Color.RED.withAlpha(0.5),
+        coordinates : Cesium.Rectangle.fromDegrees(120+0.0002,30+0.0002,120.001-0.0002,30.001-0.0002),
+        material : Cesium.Color.GREEN.withAlpha(0.5),
         extrudedHeight : initialHeightOffset-initialPushDepth+10,
         height : initialHeightOffset-initialPushDepth,
         outline : true,
         outlineColor : Cesium.Color.GREEN
     }
-});*/
+});
 </script>
 </html>
