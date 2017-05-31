@@ -17,20 +17,28 @@
 	</style>
 </head>
 <body>
+<div style="position:fixed;top:10px;left:10px;z-index:10;"><button onclick="groundpush()">下陷</button>
+<button onclick="pushmove()">移动</button></div>
 <div id="cesiumContainer"></div>
 </body>
 <script>
 var viewer = new Cesium.Viewer('cesiumContainer');
+var scene = viewer.scene;
+var camera = viewer.camera;
+var ellipsoid = scene.globe.ellipsoid;
+
 var west = Cesium.Math.toRadians(120);
 var south = Cesium.Math.toRadians(30);
 var east = Cesium.Math.toRadians(120.001);
 var north = Cesium.Math.toRadians(30.001);
 var pushRectangle = new Cesium.Rectangle(west,south,east,north);
 
+var initialHeightOffset = 200;
+var initialPushDepth = 50;
 var structure = {
-    heightOffset:100.0,
+    heightOffset:initialHeightOffset,
     pushRectangle:pushRectangle,
-    pushDepth:50
+    pushDepth:initialPushDepth
 };
 
 viewer.terrainProvider=new Cesium.EllipsoidTerrainProvider({
@@ -38,8 +46,71 @@ viewer.terrainProvider=new Cesium.EllipsoidTerrainProvider({
 });
 
 viewer.camera.setView({
-    destination : Cesium.Cartesian3.fromDegrees(120.0005, 30.0005, 200.0)
+    destination : Cesium.Cartesian3.fromDegrees(120.0005, 30.0005, 300.0)
 });
 
+function groundpush(){
+	var this_structure = {
+		heightOffset:structure.heightOffset,
+		pushRectangle:structure.pushRectangle,
+		pushDepth:100
+	};
+	viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider({
+		structure:this_structure
+	});
+}
+
+function pushmove(){
+	var west2 = Cesium.Math.toRadians(120.001);
+	var south2 = Cesium.Math.toRadians(30.001);
+	var east2 = Cesium.Math.toRadians(120.002);
+	var north2 = Cesium.Math.toRadians(30.002);
+	var pushRectangle2 = new Cesium.Rectangle(west2,south2,east2,north2);
+	var this_structure = {
+		heightOffset:structure.heightOffset,
+		pushRectangle:pushRectangle2,
+		pushDepth:structure.pushDepth
+	};
+	viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider({
+		structure:this_structure
+	});
+}
+
+viewer.clock.onTick.addEventListener(function(clock) {
+    // Change movement speed based on the distance of the camera to the surface of the ellipsoid.
+    var carto = ellipsoid.cartesianToCartographic(camera.position);
+    if(carto.height<210){
+        var lat = carto.latitude;
+        var lon = carto.longitude;
+        var height = 210;
+        var newCarto = new Cesium.Cartographic(lon, lat, height);
+        camera.position = ellipsoid.cartographicToCartesian(newCarto);
+    }
+});
+
+/*var cave = viewer.entities.add({
+    name : 'cave',
+    rectangle : {
+        coordinates : pushRectangle,
+        fill:false,
+        extrudedHeight : initialHeightOffset,
+        height : initialHeightOffset-initialPushDepth,
+        outline : true,
+        outlineColor : Cesium.Color.YELLOW,
+        closeTop:false
+    }
+});
+
+var greenRectangle = viewer.entities.add({
+    name : 'Green translucent, rotated, and extruded rectangle at height with outline',
+    rectangle : {
+        coordinates : Cesium.Rectangle.fromDegrees(120+0.0002,31+0.0002,120.001-0.0002,31.001-0.0002),
+        material : Cesium.Color.RED.withAlpha(0.5),
+        extrudedHeight : initialHeightOffset-initialPushDepth+10,
+        height : initialHeightOffset-initialPushDepth,
+        outline : true,
+        outlineColor : Cesium.Color.GREEN
+    }
+});*/
 </script>
 </html>
