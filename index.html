@@ -66,6 +66,9 @@ viewer.camera.setView({
 });
 
 function groundpush(){
+	viewer.terrainProvider._structure.pushDepth=100; 
+	scene.globe._surface.tileProvider._needReLoading=true;
+
 	var structure = viewer.terrainProvider._structure; 
 	var this_structure = {
 		heightOffset:structure.heightOffset,
@@ -76,9 +79,9 @@ function groundpush(){
 	cave.rectangle.height = this_structure.heightOffset-this_structure.pushDepth;
 	greenRectangle.rectangle.height = this_structure.heightOffset-this_structure.pushDepth;
 	greenRectangle.rectangle.extrudedHeight = this_structure.heightOffset-this_structure.pushDepth+10;
-	viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider({
-		structure:this_structure
-	});
+	//viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider({
+	//	structure:this_structure
+	//});
 }
 
 function pushmove(){
@@ -110,7 +113,7 @@ var canvas = viewer.canvas;
 var handler = new Cesium.ScreenSpaceEventHandler(canvas);
 function toggle(){
 	if(upStatus){
-		canvas.setAttribute('tabindex', '0'); // needed to put focus on the canvas
+		/*canvas.setAttribute('tabindex', '0'); // needed to put focus on the canvas
 		canvas.onclick = function() {
 			canvas.focus();
 		};
@@ -166,7 +169,7 @@ function toggle(){
 			if (typeof flagName !== 'undefined') {
 				flags[flagName] = false;
 			}
-		}, false);
+		}, false);*/
 		
 		var dest = ellipsoid.cartographicToCartesian(currentCenter);
 		camera.setView({
@@ -194,13 +197,13 @@ function toggle(){
 		underStatus = false;
 		upStatus = true;
 		
-		scene.screenSpaceCameraController.enableRotate = true;
+		/*scene.screenSpaceCameraController.enableRotate = true;
 		scene.screenSpaceCameraController.enableTranslate = true;
 		scene.screenSpaceCameraController.enableZoom = true;
 		scene.screenSpaceCameraController.enableTilt = true;
 		scene.screenSpaceCameraController.enableLook = true;
 		
-		handler.destroy();
+		handler.destroy();*/
 	}
 }
 
@@ -227,7 +230,7 @@ viewer.clock.onTick.addEventListener(function(clock) {
 			var newCarto = new Cesium.Cartographic(lon, lat, height);
 			camera.position = ellipsoid.cartographicToCartesian(newCarto);
 		}
-		if (flags.looking) {
+		/*if (flags.looking) {
 			var width = canvas.clientWidth;
 			var height = canvas.clientHeight;
 
@@ -236,8 +239,10 @@ viewer.clock.onTick.addEventListener(function(clock) {
 			var y = -(mousePosition.y - startMousePosition.y) / height;
 
 			var lookFactor = 0.05;
-			camera.lookRight(x * lookFactor);
+			//camera.lookRight(x * lookFactor);
+			//camera.lookUp(y * lookFactor);
 			camera.lookUp(y * lookFactor);
+			camera.look(camera.position, x * lookFactor);
 		}
 
 		// Change movement speed based on the distance of the camera to the surface of the ellipsoid.
@@ -261,7 +266,7 @@ viewer.clock.onTick.addEventListener(function(clock) {
 		}
 		if (flags.moveRight) {
 			camera.moveRight(moveRate);
-		}
+		}*/
 	}
     
 });
