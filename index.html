@@ -19,6 +19,7 @@
 <body>
 <div style="position:fixed;top:10px;left:10px;z-index:10;">
 	<button onclick="groundpush()">下陷</button>
+	<button onclick="groundreset()">复原</button>
 	<button onclick="pushmove()">移动</button>
 	<!-- <button onclick="toggle()">地上/地下</button> -->
 </div>
@@ -66,15 +67,31 @@ viewer.camera.setView({
 });
 
 function groundpush(){
-	viewer.terrainProvider._structure.pushDepth=100; 
-	scene.globe._surface.tileProvider._needReLoading=true;
-
 	var structure = viewer.terrainProvider._structure; 
 	var this_structure = {
 		heightOffset:structure.heightOffset,
 		pushRectangle:structure.pushRectangle,
 		pushDepth:100
 	};
+	viewer.terrainProvider._structure = this_structure;
+	scene.globe._surface.tileProvider._needReLoading=true;
+	currentCenter = new Cesium.Cartographic((structure.pushRectangle.west+structure.pushRectangle.east)/2,(structure.pushRectangle.south+structure.pushRectangle.north)/2,structure.heightOffset-structure.pushDepth/2);
+	cave.rectangle.height = this_structure.heightOffset-this_structure.pushDepth;
+	greenRectangle.rectangle.height = this_structure.heightOffset-this_structure.pushDepth;
+	greenRectangle.rectangle.extrudedHeight = this_structure.heightOffset-this_structure.pushDepth+10;
+	//viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider({
+	//	structure:this_structure
+	//});
+}
+function groundreset(){
+	var structure = viewer.terrainProvider._structure; 
+	var this_structure = {
+		heightOffset:structure.heightOffset,
+		pushRectangle:structure.pushRectangle,
+		pushDepth:initialPushDepth
+	};
+	viewer.terrainProvider._structure = this_structure;
+	scene.globe._surface.tileProvider._needReLoading=true;
 	currentCenter = new Cesium.Cartographic((structure.pushRectangle.west+structure.pushRectangle.east)/2,(structure.pushRectangle.south+structure.pushRectangle.north)/2,structure.heightOffset-structure.pushDepth/2);
 	cave.rectangle.height = this_structure.heightOffset-this_structure.pushDepth;
 	greenRectangle.rectangle.height = this_structure.heightOffset-this_structure.pushDepth;
