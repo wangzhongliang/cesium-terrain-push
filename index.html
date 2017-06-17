@@ -66,12 +66,22 @@ camera.setView({
     destination : Cesium.Cartesian3.fromDegrees(120.0005, 30.0005, 300.0)
 });
 //移动镜头时，如果有下挖，就重载下挖的瓦片，为了在视角变化时重载
+var viewChanging = false;
 camera.moveStart.addEventListener(function() {
-    //scene.globe._surface.tileProvider._needReLoading=true;
+    scene.globe._surface.tileProvider._needReLoading=true;
+    viewChanging = true;
 });
 camera.moveEnd.addEventListener(function() {
     scene.globe._surface.tileProvider._needReLoading=true;
+    viewChanging = false;
 });
+
+viewer.clock.onTick.addEventListener(function(clock) {
+    if(viewChanging){
+        scene.globe._surface.tileProvider._needReLoading=true;
+    }
+});
+
 function groundpush(){
 	var structure = viewer.terrainProvider._structure; 
 	var this_structure = {
