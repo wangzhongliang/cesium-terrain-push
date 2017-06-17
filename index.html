@@ -62,10 +62,16 @@ viewer.terrainProvider=new Cesium.EllipsoidTerrainProvider({
     structure:structure
 });
 
-viewer.camera.setView({
+camera.setView({
     destination : Cesium.Cartesian3.fromDegrees(120.0005, 30.0005, 300.0)
 });
-
+//移动镜头时，如果有下挖，就重载下挖的瓦片，为了在视角变化时重载
+camera.moveStart.addEventListener(function() {
+    //scene.globe._surface.tileProvider._needReLoading=true;
+});
+camera.moveEnd.addEventListener(function() {
+    scene.globe._surface.tileProvider._needReLoading=true;
+});
 function groundpush(){
 	var structure = viewer.terrainProvider._structure; 
 	var this_structure = {
@@ -75,7 +81,7 @@ function groundpush(){
 	};
 	viewer.terrainProvider._structure = this_structure;
 	scene.globe._surface.tileProvider._needReLoading=true;
-	currentCenter = new Cesium.Cartographic((structure.pushRectangle.west+structure.pushRectangle.east)/2,(structure.pushRectangle.south+structure.pushRectangle.north)/2,structure.heightOffset-structure.pushDepth/2);
+	currentCenter = new Cesium.Cartographic((this_structure.pushRectangle.west+this_structure.pushRectangle.east)/2,(this_structure.pushRectangle.south+this_structure.pushRectangle.north)/2,this_structure.heightOffset-this_structure.pushDepth/2);
 	cave.rectangle.height = this_structure.heightOffset-this_structure.pushDepth;
 	greenRectangle.rectangle.height = this_structure.heightOffset-this_structure.pushDepth;
 	greenRectangle.rectangle.extrudedHeight = this_structure.heightOffset-this_structure.pushDepth+10;
@@ -92,7 +98,7 @@ function groundreset(){
 	};
 	viewer.terrainProvider._structure = this_structure;
 	scene.globe._surface.tileProvider._needReLoading=true;
-	currentCenter = new Cesium.Cartographic((structure.pushRectangle.west+structure.pushRectangle.east)/2,(structure.pushRectangle.south+structure.pushRectangle.north)/2,structure.heightOffset-structure.pushDepth/2);
+	currentCenter = new Cesium.Cartographic((this_structure.pushRectangle.west+this_structure.pushRectangle.east)/2,(this_structure.pushRectangle.south+this_structure.pushRectangle.north)/2,this_structure.heightOffset-this_structure.pushDepth/2);
 	cave.rectangle.height = this_structure.heightOffset-this_structure.pushDepth;
 	greenRectangle.rectangle.height = this_structure.heightOffset-this_structure.pushDepth;
 	greenRectangle.rectangle.extrudedHeight = this_structure.heightOffset-this_structure.pushDepth+10;
@@ -106,14 +112,14 @@ function pushmove(){
 	var this_structure = {
 		heightOffset:structure.heightOffset,
 		pushRectangle:pushRectangle2,
-		pushDepth:structure.pushDepth
+		pushDepth:structure.pushDepth,
+        resetRectangle:structure.pushRectangle
 	};
-	currentCenter = new Cesium.Cartographic((structure.pushRectangle.west+structure.pushRectangle.east)/2,(structure.pushRectangle.south+structure.pushRectangle.north)/2,structure.heightOffset-structure.pushDepth/2);
+    viewer.terrainProvider._structure=this_structure; 
+	scene.globe._surface.tileProvider._needReLoading=true;
+	currentCenter = new Cesium.Cartographic((this_structure.pushRectangle.west+this_structure.pushRectangle.east)/2,(this_structure.pushRectangle.south+this_structure.pushRectangle.north)/2,this_structure.heightOffset-this_structure.pushDepth/2);
 	cave.rectangle.coordinates = pushRectangle2;
 	greenRectangle.rectangle.coordinates = Cesium.Rectangle.fromDegrees(120.001+0.0002,30.001+0.0002,120.002-0.0002,30.002-0.0002);
-	viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider({
-		structure:this_structure
-	});
 }
 var startMousePosition;
 var mousePosition;
