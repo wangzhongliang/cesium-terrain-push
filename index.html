@@ -21,7 +21,6 @@
 	<button onclick="groundpush()">下陷</button>
 	<button onclick="groundreset()">复原</button>
 	<button onclick="pushmove()">移动</button>
-	<!-- <button onclick="toggle()">地上/地下</button> -->
 </div>
 <div id="cesiumContainer"></div>
 </body>
@@ -34,30 +33,39 @@ scene.globe.depthTestAgainstTerrain = true;
 //Add Cesium Inspector
 viewer.extend(Cesium.viewerCesiumInspectorMixin);
 
+//视角在地上还是地下的状态
 var upStatus = true;
 var underStatus = false;
 
+//第一个下挖rectangle
 var west = Cesium.Math.toRadians(120);
 var south = Cesium.Math.toRadians(30);
 var east = Cesium.Math.toRadians(120.001);
 var north = Cesium.Math.toRadians(30.001);
 var pushRectangle = new Cesium.Rectangle(west,south,east,north);
+
+//第二个下挖rectangle
 var west2 = Cesium.Math.toRadians(120.001);
 var south2 = Cesium.Math.toRadians(30.001);
 var east2 = Cesium.Math.toRadians(120.002);
 var north2 = Cesium.Math.toRadians(30.002);
 var pushRectangle2 = new Cesium.Rectangle(west2,south2,east2,north2);
 
+//高程抬升初始值
 var initialHeightOffset = 200;
+//下挖深度初始值
 var initialPushDepth = 50;
+//构造structure，传入terrainProvider
 var structure = {
     heightOffset:initialHeightOffset,
     pushRectangle:pushRectangle,
     pushDepth:initialPushDepth
 };
 
+//当前下挖区域的中心经纬度，用于绘制坑内的图形
 var currentCenter = new Cesium.Cartographic((west+east)/2,(south+north)/2,initialHeightOffset-initialPushDepth/2);
 
+//将初始structure传入terrainProvider
 viewer.terrainProvider=new Cesium.EllipsoidTerrainProvider({
     structure:structure
 });
@@ -65,7 +73,8 @@ viewer.terrainProvider=new Cesium.EllipsoidTerrainProvider({
 camera.setView({
     destination : Cesium.Cartesian3.fromDegrees(120.0005, 30.0005, 300.0)
 });
-//移动镜头时，如果有下挖，就重载下挖的瓦片，为了在视角变化时重载
+
+//移动镜头时，开启重载，如果有下挖，就重载下挖的瓦片
 var viewChanging = false;
 camera.moveStart.addEventListener(function() {
     scene.globe._surface.tileProvider._needReLoading=true;
@@ -76,12 +85,7 @@ camera.moveEnd.addEventListener(function() {
     viewChanging = false;
 });
 
-viewer.clock.onTick.addEventListener(function(clock) {
-    if(viewChanging){
-        scene.globe._surface.tileProvider._needReLoading=true;
-    }
-});
-
+//下挖地形的函数
 function groundpush(){
 	var structure = viewer.terrainProvider._structure; 
 	var this_structure = {
@@ -99,7 +103,10 @@ function groundpush(){
 	//	structure:this_structure
 	//});
 }
+
+//地形复原的函数
 function groundreset(){
+	//复原地形--开始
 	var structure = viewer.terrainProvider._structure; 
 	var this_structure = {
 		heightOffset:structure.heightOffset,
@@ -108,16 +115,18 @@ function groundreset(){
 	};
 	viewer.terrainProvider._structure = this_structure;
 	scene.globe._surface.tileProvider._needReLoading=true;
+	//复原地形--结束
+	
+	//重绘坑中图形
 	currentCenter = new Cesium.Cartographic((this_structure.pushRectangle.west+this_structure.pushRectangle.east)/2,(this_structure.pushRectangle.south+this_structure.pushRectangle.north)/2,this_structure.heightOffset-this_structure.pushDepth/2);
 	cave.rectangle.height = this_structure.heightOffset-this_structure.pushDepth;
 	greenRectangle.rectangle.height = this_structure.heightOffset-this_structure.pushDepth;
 	greenRectangle.rectangle.extrudedHeight = this_structure.heightOffset-this_structure.pushDepth+10;
-	//viewer.terrainProvider = new Cesium.EllipsoidTerrainProvider({
-	//	structure:this_structure
-	//});
 }
 
+//改变下挖区域的函数
 function pushmove(){
+	//改变下挖区域--开始
 	var structure = viewer.terrainProvider._structure;
 	var this_structure = {
 		heightOffset:structure.heightOffset,
@@ -127,123 +136,20 @@ function pushmove(){
 	};
     viewer.terrainProvider._structure=this_structure; 
 	scene.globe._surface.tileProvider._needReLoading=true;
+	//改变下挖区域--结束
+	
 	currentCenter = new Cesium.Cartographic((this_structure.pushRectangle.west+this_structure.pushRectangle.east)/2,(this_structure.pushRectangle.south+this_structure.pushRectangle.north)/2,this_structure.heightOffset-this_structure.pushDepth/2);
 	cave.rectangle.coordinates = pushRectangle2;
 	greenRectangle.rectangle.coordinates = Cesium.Rectangle.fromDegrees(120.001+0.0002,30.001+0.0002,120.002-0.0002,30.002-0.0002);
 }
-var startMousePosition;
-var mousePosition;
-var flags = {
-	looking : false,
-	moveForward : false,
-	moveBackward : false,
-	moveUp : false,
-	moveDown : false,
-	moveLeft : false,
-	moveRight : false
-};
-var canvas = viewer.canvas;
-var handler = new Cesium.ScreenSpaceEventHandler(canvas);
-function toggle(){
-	if(upStatus){
-		/*canvas.setAttribute('tabindex', '0'); // needed to put focus on the canvas
-		canvas.onclick = function() {
-			canvas.focus();
-		};
 
-		// disable the default event handlers
-		scene.screenSpaceCameraController.enableRotate = false;
-		scene.screenSpaceCameraController.enableTranslate = false;
-		scene.screenSpaceCameraController.enableZoom = false;
-		scene.screenSpaceCameraController.enableTilt = false;
-		scene.screenSpaceCameraController.enableLook = false;
-
-		handler.setInputAction(function(movement) {
-			flags.looking = true;
-			mousePosition = startMousePosition = Cesium.Cartesian3.clone(movement.position);
-		}, Cesium.ScreenSpaceEventType.LEFT_DOWN);
-
-		handler.setInputAction(function(movement) {
-			mousePosition = movement.endPosition;
-		}, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
-
-		handler.setInputAction(function(position) {
-			flags.looking = false;
-		}, Cesium.ScreenSpaceEventType.LEFT_UP);
-
-		function getFlagForKeyCode(keyCode) {
-			switch (keyCode) {
-			case 'W'.charCodeAt(0):
-				return 'moveForward';
-			case 'S'.charCodeAt(0):
-				return 'moveBackward';
-			case 'Q'.charCodeAt(0):
-				return 'moveUp';
-			case 'E'.charCodeAt(0):
-				return 'moveDown';
-			case 'D'.charCodeAt(0):
-				return 'moveRight';
-			case 'A'.charCodeAt(0):
-				return 'moveLeft';
-			default:
-				return undefined;
-			}
-		}
-
-		document.addEventListener('keydown', function(e) {
-			var flagName = getFlagForKeyCode(e.keyCode);
-			if (typeof flagName !== 'undefined') {
-				flags[flagName] = true;
-			}
-		}, false);
-
-		document.addEventListener('keyup', function(e) {
-			var flagName = getFlagForKeyCode(e.keyCode);
-			if (typeof flagName !== 'undefined') {
-				flags[flagName] = false;
-			}
-		}, false);*/
-		
-		var dest = ellipsoid.cartographicToCartesian(currentCenter);
-		camera.setView({
-			destination:dest,
-			orientation: {
-				heading : Cesium.Math.toRadians(0.0), // east, default value is 0.0 (north)
-				pitch : Cesium.Math.toRadians(0),    // default value (looking down)
-				roll : 0.0                             // default value
-			}
-		});
-		underStatus = true;
-		upStatus = false;
-	}
-	else{
-		var upCenter = new Cesium.Cartographic(currentCenter.longitude,currentCenter.latitude,210);
-		var dest = ellipsoid.cartographicToCartesian(upCenter);
-		camera.setView({
-			destination:dest,
-			orientation: {
-				heading : Cesium.Math.toRadians(0.0), // east, default value is 0.0 (north)
-				pitch : Cesium.Math.toRadians(-90),    // default value (looking down)
-				roll : 0.0                             // default value
-			}
-		});
-		underStatus = false;
-		upStatus = true;
-		
-		/*scene.screenSpaceCameraController.enableRotate = true;
-		scene.screenSpaceCameraController.enableTranslate = true;
-		scene.screenSpaceCameraController.enableZoom = true;
-		scene.screenSpaceCameraController.enableTilt = true;
-		scene.screenSpaceCameraController.enableLook = true;
-		
-		handler.destroy();*/
-	}
-}
-
+//时刻监听viewer
 viewer.clock.onTick.addEventListener(function(clock) {
-    // Change movement speed based on the distance of the camera to the surface of the ellipsoid.
-    //var carto = ellipsoid.cartesianToCartographic(camera.position);
-	//console.log(carto.height);
+	//如果相机视角变化，就开启重载
+	if(viewChanging){
+        scene.globe._surface.tileProvider._needReLoading=true;
+    }
+	//如果相机在地上，就限制相机一直在地上
 	if(upStatus){
 		var carto = ellipsoid.cartesianToCartographic(camera.position);
 		if(carto.height<210){
@@ -254,6 +160,7 @@ viewer.clock.onTick.addEventListener(function(clock) {
 			camera.position = ellipsoid.cartographicToCartesian(newCarto);
 		}
 	}
+	//如果相机在地下（功能未完成）
 	else{
 		var carto = ellipsoid.cartesianToCartographic(camera.position);
 		if(carto.height>180){
@@ -263,47 +170,11 @@ viewer.clock.onTick.addEventListener(function(clock) {
 			var newCarto = new Cesium.Cartographic(lon, lat, height);
 			camera.position = ellipsoid.cartographicToCartesian(newCarto);
 		}
-		/*if (flags.looking) {
-			var width = canvas.clientWidth;
-			var height = canvas.clientHeight;
-
-			// Coordinate (0.0, 0.0) will be where the mouse was clicked.
-			var x = (mousePosition.x - startMousePosition.x) / width;
-			var y = -(mousePosition.y - startMousePosition.y) / height;
-
-			var lookFactor = 0.05;
-			//camera.lookRight(x * lookFactor);
-			//camera.lookUp(y * lookFactor);
-			camera.lookUp(y * lookFactor);
-			camera.look(camera.position, x * lookFactor);
-		}
-
-		// Change movement speed based on the distance of the camera to the surface of the ellipsoid.
-		var cameraHeight = ellipsoid.cartesianToCartographic(camera.position).height;
-		var moveRate = cameraHeight / 100.0;
-
-		if (flags.moveForward) {
-			camera.moveForward(moveRate);
-		}
-		if (flags.moveBackward) {
-			camera.moveBackward(moveRate);
-		}
-		if (flags.moveUp) {
-			camera.moveUp(moveRate);
-		}
-		if (flags.moveDown) {
-			camera.moveDown(moveRate);
-		}
-		if (flags.moveLeft) {
-			camera.moveLeft(moveRate);
-		}
-		if (flags.moveRight) {
-			camera.moveRight(moveRate);
-		}*/
 	}
     
 });
 
+//初始化坑中图形
 var cave = viewer.entities.add({
     name : 'cave',
     rectangle : {
